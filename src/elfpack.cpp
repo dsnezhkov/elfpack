@@ -11,7 +11,6 @@ int main(int argc, char **argv) {
         exit(AFAULT);
     }
 
-
     char *host_elf_file = argv[1];
     char *payload_file = argv[2];
     char *dst_elf_file = argv[3];
