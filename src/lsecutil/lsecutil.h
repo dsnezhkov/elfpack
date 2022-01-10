@@ -7,6 +7,7 @@
 
 #include <fcntl.h>
 #include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -27,6 +28,6 @@ void xor_buffer( unsigned char **buffer, unsigned long bufferSize, unsigned char
 void uxor_buffer( unsigned char **buffer, unsigned long bufferSize, unsigned char key );
 unsigned int leftRotate(unsigned int n, int d);
 unsigned int rightRotate(unsigned int n, int d);
-
+void xKey2Buf( char * key, unsigned long ** out);
 
 #endif //SECRYPT_LSECUTIL_H

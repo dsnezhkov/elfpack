@@ -88,3 +88,19 @@ unsigned int rightRotate(unsigned int n, int d)
 {
     return (((n >> d) & 0xFF) | (n << (8-d)));
 }
+
+void xKey2Buf( char * key, unsigned long ** out){
+   *out = (unsigned long*) calloc(sizeof(unsigned char), 2);
+    char *endptr = NULL;
+    errno = 0;
+
+    // Convert str key to long
+    *out[0] = strtol(key, NULL, 16);
+    if (errno != 0) {
+        err(EXIT_FAILURE, "strtol() conversion of key %s", key);
+    }
+
+    if (endptr == key) {
+        err(EXIT_FAILURE, "strtol(): no digits found %s", key);
+    }
+}

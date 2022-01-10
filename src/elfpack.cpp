@@ -5,9 +5,9 @@ using namespace ELFIO;
 
 int main(int argc, char **argv) {
 
-    if (argc < 6 || argc > 7) {
+    if (argc != 8) {
         cerr << "Usage: " << argv[0]
-             << " <host_elf_file_in> <payload_file> <dst_elf_file_out> <dst_sec> <dst_descriptor_name> <key>" << endl;
+             << " <path/host_elf_file_in> <path/payload_file> <path/dst_elf_file_out> <.dst_sec> <dst_descriptor_name> <algo:X|A> <key>" << endl;
         exit(AFAULT);
     }
 
@@ -16,8 +16,10 @@ int main(int argc, char **argv) {
     char *dst_elf_file = argv[3];
     char *dst_sec_name = argv[4];
     char *dst_desc_name = argv[5];
+    char *algo = argv[6];
+    char *key = argv[7];
+    unsigned long* xor_key_store = nullptr;
 
-    unsigned char xor_key = 0x00;
     unsigned int sec_num;
     unsigned long sec_size;
     unsigned char *data = nullptr;
@@ -45,24 +47,6 @@ int main(int argc, char **argv) {
         exit(AFAULT);
     }
 
-    if (argc == 7) {
-
-        char *endptr = nullptr;
-        errno = 0;
-
-        xor_key = strtol(argv[6], nullptr, 16);
-        if (errno != 0) {
-            perror("strtol() conversion of key parameter");
-            exit(AFAULT);
-        }
-
-        if (endptr == argv[6]) {
-            cerr << "No digits were found" << endl;
-            exit(AFAULT);
-        }
-
-        cout << "Xor key: " << hex << xor_key << endl;
-    }
     // Load host ELF data
     if (!reader_writer.load(host_elf_file)) {
         cerr << "Can't find or process src ELF file: " << host_elf_file << endl;
@@ -85,7 +69,7 @@ int main(int argc, char **argv) {
         note_sec->set_type(SHT_NOTE);
     }
 
-    note_section_accessor note_writer(reader_writer, note_sec);
+    note_section_accessor pnote_writer(reader_writer, note_sec);
     cout << "Entry: "
          << note_entry_seq
          << ", Desc: "
@@ -94,13 +78,38 @@ int main(int argc, char **argv) {
          << data_sz
          << endl;
 
-    // XOR data with tricks?
-    if (xor_key != 0x00) {
-        xor_buffer(&data, data_sz, xor_key);
+
+    if (strcmp(algo, "X") == 0)
+    {
+        // XOR method
+        xKey2Buf(key,&xor_key_store);
+        cout << "Xor key: " << hex << xor_key_store[0] << endl;
+
+        // XOR data
+        xor_buffer(&data, data_sz, xor_key_store[0]);
+
+        // Write data to section
+        pnote_writer.add_note(note_entry_seq, dst_desc_name, data, data_sz);
+    }
+    else if (strcmp(algo, "A") == 0)
+    {
+        // AES ...
+    }
+    else /* default: */
+    {
+        err(EXIT_FAILURE, "%s not in algo choices <X|A>", algo);
     }
 
-    // Write data to section
-    note_writer.add_note(note_entry_seq, dst_desc_name, data, data_sz);
+
+    // Write meta data to meta section
+    note_sec = reader_writer.sections.add(".note.gnu.buf"); // TODO: add external argument
+    note_sec->set_type(SHT_NOTE);
+
+    note_section_accessor knote_writer(reader_writer, note_sec);
+    knote_writer.add_note(0x0, "0x0", xor_key_store, strlen(key)); // TODO: add external arguments, etc.
+    knote_writer.add_note(0x1, "0x1", "X", strlen(algo)); // TODO: add external arguments, etc.
+
+
     if (reader_writer.save(dst_elf_file) == TRUE) {
         cout << "Packed " << dst_elf_file << " OK" << endl;
     }

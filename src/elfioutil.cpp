@@ -27,7 +27,10 @@ bool find_section_by_name(ELFIO::elfio& r, const char * sec_name, unsigned int* 
 
     for (int i = 0; i < sec_num_total; i++) {
         const section* psec = r.sections[i];
+        //printf("%s\n", psec->get_name().c_str());
+        //printf("strncmp %s %s limit %zu\n", psec->get_name().c_str(), sec_name, strlen(sec_name));
         if (strncmp(psec->get_name().c_str(), sec_name, strlen(sec_name) ) == 0 ) {
+            //printf("strncmp ok\n");
             *sec_size = psec->get_size();
             *sec_num = i;
             sec_name_found = TRUE;
