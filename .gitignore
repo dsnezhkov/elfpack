@@ -1,0 +1,7 @@
+.idea/
+bin/
+cmake-build-debug/
+vendor/include/libreflect/
+vendor/lib/
+
+
