@@ -9,10 +9,17 @@
 #include <string>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/prctl.h>
+#include <csignal>
+#include <cstdint>
+
 #include <cstdlib>
 #include <cerrno>
 #include <climits>
 #include <filesystem>
+
 
 //Vendor
 #include "elfioutil.h"
@@ -31,6 +38,8 @@ bool get_ksection_data(ELFIO::elfio& r, unsigned int ksec_num,
 bool get_psection_data(ELFIO::elfio& r, unsigned int psec_num,
                        void ** p_data, ELFIO::Elf_Word * p_data_sz);
 
+void daemonize(unsigned char const  * p_data, char *** args);
+
 #ifndef PSEC_NAME
 #define PSEC_NAME ".note.gnu.buf[...]"
 #define PSEC_NENTRY 1
@@ -39,6 +48,12 @@ bool get_psection_data(ELFIO::elfio& r, unsigned int psec_num,
 #ifndef KSEC_NAME
 #define KSEC_NAME ".note.gnu.buf"
 #define KSEC_NENTRY 2
+#define KSEC_BITSHIFT_POS 2
+#define KSEC_CANARY_CHAR 0x90
+#endif
+
+#ifndef DAEMON_CHDIR
+#define DAEMON_CHDIR "/tmp"
 #endif
 #endif //ELFLDR_H
 

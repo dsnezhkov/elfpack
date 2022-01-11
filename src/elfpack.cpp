@@ -106,7 +106,21 @@ int main(int argc, char **argv) {
     note_sec->set_type(SHT_NOTE);
 
     note_section_accessor knote_writer(reader_writer, note_sec);
-    knote_writer.add_note(0x0, "0x0", xor_key_store, strlen(key)); // TODO: add external arguments, etc.
+
+
+    unsigned int canary_buffer_sz = 4;
+    unsigned char * canary_buffer = (unsigned char*) calloc (sizeof(unsigned char), canary_buffer_sz);
+    canary_buffer[0] = 0x90;
+    canary_buffer[1] = 0x90;
+    canary_buffer[2] = 0x90;
+    canary_buffer[3] = 0x90;
+    xor_buffer( &canary_buffer, canary_buffer_sz, xor_key_store[0]);
+
+
+
+    // Key store
+    // knote_writer.add_note(0x0, "0x0", xor_key_store, strlen(key)); // TODO: add external arguments, etc.
+    knote_writer.add_note(0x0, "0x0", canary_buffer, canary_buffer_sz); // TODO: add external arguments, etc.
     knote_writer.add_note(0x1, "0x1", "X", strlen(algo)); // TODO: add external arguments, etc.
 
 
