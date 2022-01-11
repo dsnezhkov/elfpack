@@ -18,7 +18,7 @@ add_executable(${ELFPACK_EXE} ${ELFPACK_SRC}/elfpack.cpp src/elfioutil.cpp)
 target_link_libraries(${ELFPACK_EXE} lsecutil)
 
 # Import external library and build
-add_executable(${ELFLDR_EXE} ${ELFPACK_SRC}/elfldr.cpp src/elfioutil.cpp)
+add_executable(${ELFLDR_EXE} ${ELFPACK_SRC}/elfldr.cpp ${ELFPACK_SRC}/elfldrlib.cpp src/elfioutil.cpp src/elfldrlib.cpp)
 target_link_libraries(${ELFLDR_EXE} lsecutil ${PROJECT_SOURCE_DIR}/vendor/lib/reflect/libreflect.a)
 
 set_target_properties(${ELFPACK_EXE} PROPERTIES

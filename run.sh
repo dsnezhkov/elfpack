@@ -38,7 +38,7 @@ echo Packing with $ELFPACK : host file ${HOST_ELF_FILE} with ${PAYLOAD_FILE} int
 
 $ELFPACK ${HOST_ELF_FILE} ${PAYLOAD_FILE} ${DST_ELF_FILE} "${DST_ELF_SECTION}" ${DST_DESC_NAME} ${DST_ELF_META_ALGO} "${XOR_KEY}"
 
-chmod +rx $DST_ELF_FILE && $DST_ELF_FILE  "${PAY_OPTS[@]}"
+chmod +rx $DST_ELF_FILE &&  $DST_ELF_FILE  "${PAY_OPTS[@]}"
 
 
 
