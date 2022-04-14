@@ -25,5 +25,6 @@ bool find_section_by_name(ELFIO::elfio& r, const char * sec_name, unsigned int* 
 void read_section_data_to_buffer(ELFIO::elfio& r, char** data, unsigned int sec_num, ELFIO::Elf_Xword sec_sz);
 size_t write_buffer_to_file(char* dst_file_name, char ** data, ELFIO::Elf_Xword sz);
 
+#define KSEC_CANARY_CHAR 0x90 // used for XOR bruteforce
 #endif //ELFPACK_H
 

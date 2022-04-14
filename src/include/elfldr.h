@@ -39,12 +39,11 @@ unsigned int get_section_entries_n(ELFIO::elfio& r, unsigned int sec_num);
 bool get_ksection_data(ELFIO::elfio& r, unsigned int ksec_num,
                        void ** key_data, ELFIO::Elf_Word * key_data_sz,
                        void ** algo_data, ELFIO::Elf_Word * algo_data_sz);
+
 bool get_psection_data(ELFIO::elfio& r, unsigned int psec_num,
                        void ** p_data, ELFIO::Elf_Word * p_data_sz);
-void set_psection_data(ELFIO::elfio &reader,
-                       unsigned int psec_num,
-                       ELFIO::Elf_Word p_data_sz, const char * dst_elf_file);
 
+void clean_psection_data( unsigned int psec_num, const char * dst_elf_file);
 void daemonize( mem_exec fp, bool memfd_method, unsigned char const  * p_data, char *** args);
 void load_exec( bool memfd_method, unsigned char const  * p_data, char *** args);
 void set_exec_args( char *** new_argv, char *** argv, int argc, int skip_pos );
@@ -73,9 +72,9 @@ unsigned int find_x_key( void ** key_data );
 #define DEBUG_PAYDUMPF 0 // Dump paylaod to local file
 #define PAYDUMPF "/tmp/dmp"
 
-#define debug_print(fmt, ...) \
+#define dprint(fmt, ...) \
         do { if (DEBUG == 1) fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, \
-                                __LINE__, __func__, __VA_ARGS__); } while (0)
+                                __LINE__, __func__, ##__VA_ARGS__); } while (0)
 #endif
 
 
