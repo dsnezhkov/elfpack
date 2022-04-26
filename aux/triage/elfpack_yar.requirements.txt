@@ -1,0 +1,10 @@
+cybox==2.1.0.21
+hexdump==3.3
+lxml==4.7.1
+mixbox==1.0.5
+ordered-set==4.1.0
+python-dateutil==2.8.2
+six==1.16.0
+stix==1.2.0.11
+weakrefmethod==1.0.3
+yara-python==4.1.3
