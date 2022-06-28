@@ -1,3 +1,4 @@
+import sys
 import io
 import yara
 import hexdump
@@ -6,21 +7,23 @@ import unittest
 
 
 class TestELFPack(unittest.TestCase):
+    test_file = ""
+    elf_section = ""
     def setUp(self):
-        self.scanner = ELFPAckScanner(file_path='/tmp/elf_loader/injected-cradle')
+        self.scanner = ELFPAckScanner(file_path=self.test_file)
 
     def test_list_probable(self):
         sections = self.scanner.elf_test_notes_sections()
-        self.assertTrue(len(sections) > 0, "Seeking ELFs with at least one SHT_NOTE section")
-
-        print("=== SHT_NOTES Sections === ")
-        for section_name, section_size in sections.items():
+        if len(sections) > 0:
+          print("=== SHT_NOTES Sections in %s === " % self.test_file)
+          for section_name, section_size in sections.items():
             print('{0:25s} : {1:6d} bytes'.format(section_name, section_size))
 
-    def test_show_probbale(self):
-        section_data = self.scanner.elf_section_by_name('.note.ABI-tag')
-        self.assertTrue(len(section_data) > 0, "Seeking ELFs with at most one SHT_NOTE section of non-zero size")
-        print(hexdump.hexdump(section_data))
+    def test_show_probable(self):
+        section_data = self.scanner.elf_section_by_name(self.elf_section)
+        if len(section_data) > 0:
+           print("=== Section %s content ===" % self.elf_section)
+           print(hexdump.hexdump(section_data))
 
 
 class ELFPAckScanner:
@@ -74,6 +77,13 @@ class ELFPAckScanner:
 
 
 if __name__ == '__main__':
-    unittest.main()
+    if len(sys.argv) > 2:
+       TestELFPack.elf_section = sys.argv.pop()
+
+    if len(sys.argv) > 1:
+       TestELFPack.test_file = sys.argv.pop()
+       unittest.main(verbosity=0)
+    else:
+       print("Usage: %s <path/to/elf/file> [elf_section]" %  (sys.argv[0]) ) 
 
 
