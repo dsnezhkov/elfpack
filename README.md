@@ -1,4 +1,4 @@
-	i# ElfPack: ELF Binary Section Docking for Stageless Payload Delivery
+# ElfPack: ELF Binary Section Docking for Stageless Payload Delivery
 
 
 ###  Highlights
@@ -293,9 +293,17 @@ STIX tooling definition:
 ![ELF injector](docs/images/ELF-SCAP.png)
  
 
+## Building
 
+- For Cmake: before clean build run: `cmake --configure .` to configure your build environment. We support CMAke 3.18 atm.
+- `./build.sh`
 
+### Dependencies:
+- We use libreflect library for this POC from `https://github.com/rapid7/mettle`
+- it's built for you and distributed under `vendor/lib/reflect/libreflect.a` but can be rebuilt from the original repo if needed.
 
+### BPF
+If you would like to play with BPF and `bpftrace` polease install appropriate kernel headers for your distribution.
 
 
 
