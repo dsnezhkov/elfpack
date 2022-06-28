@@ -1,8 +1,9 @@
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.18)
 project(elfpack)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -Qn")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY  "${CMAKE_BINARY_DIR}/bin")
 set(ELFPACK_EXE elfpack )
 set(ELFLDR_EXE elfldr )
 set(ELFPACK_SRC ${PROJECT_SOURCE_DIR}/src )
